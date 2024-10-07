@@ -1,38 +1,30 @@
 const express = require('express')
+const connectDB = require('./config/database')
+const User = require('./models/User')
 
 const app = express()
 
-app.listen(3000, () => {
-    console.log('Successfully listening to server on port 3000...!')
-})
+app.use(express.json())
 
-// -- routes
+app.post('/signup', async (req, res) => {
 
-const authenticateClient = (req, res, next) => {
-    const token = 'pqr'
-    const isAuthenticatedUse =  token === 'abc'
+    const user = new User(req.body);
 
-    if(!isAuthenticatedUse) {
-        res.send('Authentication failed', 401)
-    } else {
-        next()
+    try {
+        await user.save()
+        res.send('User added successfully...!')
+    } catch(err) {
+        res.status(401).send('Cannot add user : ' + err.message)
     }
-}
 
-app.use('/admin', authenticateClient)
-
-app.use('/admin/getAllData', (req, res) => {
-    res.send('Sent all user data..!')
 })
 
-app.use('/admin/deleteUserData', (req, res) => {
-    res.send('Deleted user data..!')
-})
+connectDB().then(() => {
+    console.log('Database connection established..!')
 
-app.use('/user/updateProfile', authenticateClient, (req, res) => {
-    res.send('Profile updated suceessfully..!')
-})
-
-app.use('/user/signUp', (req, res) => {
-    res.send('Signed up suceessfully..!')
+    app.listen(3000, () => {
+        console.log('Successfully listening to server on port 3000...!')
+    })
+}).catch((err) => {
+    console.log("Couldn't connect to the database..!", err)
 })

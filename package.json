@@ -17,6 +17,8 @@
   "author": "Gandhar Sawant",
   "license": "ISC",
   "dependencies": {
-    "express": "^4.21.0"
+    "@types/express": "^5.0.0",
+    "express": "^4.21.0",
+    "mongoose": "^8.7.0"
   }
 }
