@@ -1,22 +1,139 @@
 const express = require('express')
 const connectDB = require('./config/database')
+
+
 const User = require('./models/User')
+
+const {
+    matchApiFieldsWithSchema
+} = require('./middlewares/common')
+
+const { 
+    validateFieldsForUpdate,
+    validateSignUpData
+} = require('./utils/utils')
 
 const app = express()
 
+
+
 app.use(express.json())
 
-app.post('/signup', async (req, res) => {
 
-    const user = new User(req.body);
+// API - For posting user signup data
+app.post('/signup',
+    matchApiFieldsWithSchema,
+    async (req, res) => {
+        try {
+            validateSignUpData(req)
 
+            const user = new User(req.body);
+            await user.save()
+            res.send('User added successfully...!')
+        } catch(err) {
+            res.status(401).send('Cannot add user : ' + err.message)
+        }
+    }
+)
+
+//API - for getting all users data
+app.get('/feed', async (req, res) => {
     try {
-        await user.save()
-        res.send('User added successfully...!')
-    } catch(err) {
-        res.status(401).send('Cannot add user : ' + err.message)
+        const users = await User.find({})
+
+        if(users.length === 0) {
+            res.send('No data available..!')
+        } else {
+            res.send(users)
+        }
+    } catch (error) {
+        res.send('Something went wrong...!' + error)
     }
 
+})
+
+// API - for getting single user data
+app.get('/user', async (req, res) => {
+    try {
+        const userEmail = req.body.email;
+
+        const users = await User.find({ email: userEmail })
+
+        if(users.length === 0) {
+            res.send('No match found..!')
+        } else {
+            res.send(users)
+        }
+    } catch (error) {
+        res.send('Something went wrong...!' + error)
+    }
+})
+
+//API - for deleting user data
+app.delete('/user' , async (req, res) => {
+    try{
+        const userId = req.body.userId
+        const result = await User.findByIdAndDelete(userId)
+
+        if(result) {
+            res.send('User deleted successfully')
+        } else {
+            res.send('Cannot find User to perform delete operation')
+        }
+
+    } catch(err) {
+        res.send('Something went wrong...!' + err)
+    }
+})
+
+app.patch('/user', (req, res, next) => {
+    
+    const updatedData = req.body
+    const FIELDS_TO_SKIP = ["email", "age"]
+
+    const isValidFields = validateFieldsForUpdate(Object.keys(updatedData), FIELDS_TO_SKIP)
+
+    if(isValidFields) {
+        next()
+    } else {
+        res.status(500).send('Cannot update document')
+    }
+}, async (req, res) => {
+    try {
+        const userId = req.body.userId
+        const updatedData = req.body
+
+        const doc = await User.findById(userId);
+
+        const hasCreatedAt = !doc.createdAt
+
+        const options = {
+            runValidators: true,
+            ...(hasCreatedAt ? {
+                timestamps: false,
+                strict: false
+            } : {})
+        }
+
+        const data = {
+            ...updatedData,
+            ...(hasCreatedAt ? {
+                createdAt: new Date(),
+                updatedAt: new Date()
+            } : {})
+        }
+
+        const oldData = await User.findByIdAndUpdate(userId, data, options)
+
+        if(oldData) {
+            res.send('User updated successfully')
+        } else {
+            res.send('Cannot find User to perform update operation')
+        }
+
+    } catch (error) {
+        res.send('Something went wrong...!' + error)
+    }
 })
 
 connectDB().then(() => {
