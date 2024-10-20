@@ -1,5 +1,7 @@
 const express = require('express')
 const connectDB = require('./config/database')
+const bcrypt = require('bcrypt')
+const validator = require('validator')
 
 
 const User = require('./models/User')
@@ -19,16 +21,54 @@ const app = express()
 
 app.use(express.json())
 
+app.post('/login', async (req, res) => {
+    const {
+        email,
+        password
+    } = req.body
+
+    try {
+        if(!validator.isEmail(email)) {
+            throw new Error('Please enter a valid email')
+        }
+
+        const user = await User.findOne({ email })
+
+        if(!user) {
+            throw new Error('Invalid credentials')
+        }
+
+        const isValidPassword = await bcrypt.compare(password, user.password)
+
+        if(!isValidPassword) {
+            throw new Error('Invalid credentials')
+        } else {
+            res.status(200).send('Login Successfull')
+        }
+
+    } catch (error) {
+        res.status(401).send(error.message)
+    }
+
+})
+
 
 // API - For posting user signup data
 app.post('/signup',
+    // -- validate api fields with schema
     matchApiFieldsWithSchema,
     async (req, res) => {
         try {
+            // -- validate data from api
             validateSignUpData(req)
+
+            // -- Encrypt password
+            const encryptedPassword = await bcrypt.hash(req.body.password, 10)
+            req.body.password = encryptedPassword
 
             const user = new User(req.body);
             await user.save()
+
             res.send('User added successfully...!')
         } catch(err) {
             res.status(401).send('Cannot add user : ' + err.message)
