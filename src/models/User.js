@@ -1,4 +1,9 @@
 const mongoose = require('mongoose')
+const jwt = require('jsonwebtoken')
+const bcrypt = require('bcrypt')
+
+// -- For encoding the jwt
+const PRIVATE_KEY = "@Dev$Tinder#786"
 
 const userSchema = new mongoose.Schema({
     firstName: {
@@ -39,6 +44,18 @@ const userSchema = new mongoose.Schema({
         default: '/Dummy.png' 
     }
 }, { timestamps: true })
+
+userSchema.methods.getJWT = async function() {
+    const token = await jwt.sign({ _id: this._id }, PRIVATE_KEY)
+
+    return token
+}
+
+userSchema.methods.validatePassword = async function(enteredPassword) {
+    const isValidPassword = await bcrypt.compare(enteredPassword, this.password)
+
+    return isValidPassword
+}
 
 const User = mongoose.model('User', userSchema)
 

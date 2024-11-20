@@ -2,6 +2,12 @@ const express = require('express')
 const connectDB = require('./config/database')
 const bcrypt = require('bcrypt')
 const validator = require('validator')
+const cookieParser = require('cookie-parser')
+const jwt = require('jsonwebtoken')
+const { userAuth } = require('./middlewares/auth')
+
+// -- For encoding the jwt
+const PRIVATE_KEY = "@Dev$Tinder#786"
 
 
 const User = require('./models/User')
@@ -20,6 +26,7 @@ const app = express()
 
 
 app.use(express.json())
+app.use(cookieParser())
 
 app.post('/login', async (req, res) => {
     const {
@@ -38,12 +45,16 @@ app.post('/login', async (req, res) => {
             throw new Error('Invalid credentials')
         }
 
-        const isValidPassword = await bcrypt.compare(password, user.password)
+        const isValidPassword = await user.validatePassword(password)
 
-        if(!isValidPassword) {
-            throw new Error('Invalid credentials')
-        } else {
+        if(isValidPassword) {
+            // -- Create a JWT token
+            const token = await user.getJWT()
+
+            res.cookie('token', token)
             res.status(200).send('Login Successfull')
+        } else {
+            throw new Error('Invalid credentials')
         }
 
     } catch (error) {
@@ -173,6 +184,26 @@ app.patch('/user', (req, res, next) => {
 
     } catch (error) {
         res.send('Something went wrong...!' + error)
+    }
+})
+
+app.get('/profile', userAuth, async (req, res) => {
+    try {
+        const user = req.user
+
+        res.send(user)
+    } catch (error) {
+        res.send('Error : ' + error.message)
+    }
+})
+
+app.post('/sendConnectionRequest', userAuth, (req, res, next) => {
+    try {
+        const user = req.user
+
+        res.send(user.firstName + ' sent connection request')
+    } catch (error) {
+        res.send('Error : ' + error.message)
     }
 })
 
